@@ -1,0 +1,83 @@
+Revision history for Circonspect
+
+0.2.6   08-Feb-2013
+        Default output file renamed <basename>.csp instead of <basename>-basic.txt
+        Using Math::Random::MT instead of Math::Random::MT::Perl for speedup
+        New script to convert CSP files to CSV
+
+0.2.5   08-Aug-2010
+        Migrated to git
+        Fixed bug that allowed -r and -k to be specified all together although
+          they are exclusive
+
+0.2.4   15-Aug-2010
+        Fixed bug that caused the number of sequences to use to be often wrong
+          when using the metapercent (-p) option in combination with mixed or
+          cross-contig (-g or -x)
+        Fixed utility average_contig_spectra: now properly putting the results
+          on screen or in a file depending on user request
+        Improved utility average_contig_spectra:
+          * warning message if the input file is not a Circonspect detailed
+            results file
+          * average contig spectra are now in same order as in the input file
+
+0.2.3   06-Aug-2010
+        New option (-o) to output Circonspect results in a file instead of the
+          standard output
+        New utility script to calculate the average contig spectrum for an
+          unfinished/interrupted circonspect computation
+        Fixed bug in batch utility script: now also computing the last control
+          cross-contig spectrum
+        Fixed bug that caused the sample size to occasionally be higher than the
+          metagenome size when using 100% of the genome size (-p 100)
+
+0.2.2   21-Jul-2010
+        Support for exporting the contigs in the contig spectra and cross-contig
+          spectra to ACE-formatted files
+        More accurate calculation of cross-contig spectra
+        Requesting a cross-contig spectrum now causes a mixed contig spectrum to
+          be produced and returned
+        Inclusion of a bash script to automate cross-contig spectra
+        Output now shows a description of the fields
+        New default parameter: minimum coverage = 1 x
+        Better handling of default options mixed with user input.
+
+0.2.1   19-Feb-2010
+        Minor bugfix concerning the use of the detailed output file
+
+0.2.0   17-Dec-2009
+        Re-engineered the contig spectrum calculation so that is done one contig at a time, thus
+          greatly reducing the memory footprint
+        Support for more assemblers: TIGR Assembler, LIGR Assembler, Minimo, Newbler and CAP3
+        Fixed bug that miscalculated the number of repetitions to do when also using sequence
+          trimming
+        Dissolved and cross-contig spectra are now calculated using the assembly parameters specified
+         to the assembler, not the effective assembly parameters (calculated from the contigs created)
+        Change in the results displayed on screen: showing the specified minimum overlap, not the
+          effective minimum overlap
+        Default values are now: Minimo assembler, 35 bp minimum overlap, 98 % minimum identity,
+          100 bp discard, 100 bp trim, sample size of 10000 sequences
+        New option to calculate and write or not the effective assembly parameters in the detailed
+          output file
+        The Circonspect Perl module now returns the average contig spectra and detail of the contig spectra
+        Updated dependencies (bioperl and external assemblers)
+        Tests added
+
+0.1.4   21-Sep-2009
+        Fixed impossiblity of seeding properly the random number generator (Math::Random::MT::Perl)
+        Capability of filtering out low complexity sequences
+        Fixed incorrect calculation of cross-2+-contigs spectra (Bio::Assembly::Tools::ContigSpectrum)
+
+0.1.3   24-Feb-2009
+        Better sequence import
+        Support for compressed files: .gz .Z .bz2 .zip
+        Program wrapped as a CPAN module with installer
+
+0.1.2
+        Better random numbers
+
+0.1.1
+        Separated the program into a part to call from the command-line and a Perl module
+
+0.1.0
+        Initial Release

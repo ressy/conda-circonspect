@@ -1,0 +1,41 @@
+---
+abstract: 'Control In Research on CONtig SPECTra'
+author:
+  - 'Florent ANGLY, C<< <florent.angly at gmail.com> >>'
+build_requires:
+  ExtUtils::MakeMaker: '6.59'
+  Test::More: '0'
+configure_requires:
+  ExtUtils::MakeMaker: '0'
+dynamic_config: 0
+generated_by: 'Module::Install version 1.06, CPAN::Meta::Converter version 2.150001'
+license: open_source
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: '1.4'
+name: Circonspect
+no_index:
+  directory:
+    - inc
+    - t
+requires:
+  Bio::Assembly::Singlet: '0'
+  Bio::Assembly::Tools::ContigSpectrum: '0'
+  Bio::DB::Fasta: '0'
+  Bio::DB::Qual: '0'
+  Bio::PrimarySeq: '0'
+  Bio::Root::Utilities: '0'
+  Bio::Root::Version: '1.006002'
+  Bio::Seq::Quality: '0'
+  Bio::SeqIO: '0'
+  Bio::Tools::Run::Cap3: '0'
+  Bio::Tools::Run::Minimo: '0'
+  Bio::Tools::Run::Newbler: '0'
+  Bio::Tools::Run::TigrAssembler: '0'
+  Getopt::Declare: '0'
+  Graph: '0'
+  Math::Random::MT: '1.16'
+  perl: '5.006'
+resources:
+  license: http://opensource.org/licenses/gpl-license.php
+version: 0.2.6

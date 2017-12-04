@@ -1,0 +1,166 @@
+Circonspect
+
+Circonspect (Control In Research on CONtig SPECTra) was designed to create
+contig spectra based on the assembly of random subsets of metagenomes. The
+contig spectra can then be modeled downstream to get diversity estimates (for
+example with PHACCS (http://sourceforge.net/projects/phaccs). Different kind of
+contig spectra can be created: the standard contig spectrum for alpha-diversity,
+the mixed contig spectrum, for gamma-diversity, and the cross-contig spectrum,
+for beta diversity. Building a cross-contig spectrum requires building a mixed
+contig spectrum, which requires building normal contig spectra based on several
+selected metagenomes (FASTA files). Circonspect uses a indexed sequence
+database to store temporary data. Any assembly program that support a minimum
+overlap length and similarity is adapted; at this time, Minimo, TIGR
+Assembler, LIGR Assembler, CAP3 and Newbler are supported. When multiple
+repetitions are done (bootstrapping), the average contig spectrum is
+calculated. The user can control the size of the sequences by trimming them to
+a given length and removing sequences smaller than a threshold.
+
+
+CITATION
+
+If you use Circonspect in your research, please cite:
+Angly FE et al., The marine viromes of four oceanic regions, PLoS Biology 4, no. 11 (November 1, 2006): e368.
+
+
+INSTALLATION
+
+You need to install these dependencies first:
+  * Perl (http://www.perl.com/download.csp).
+  * The Minimo assembler, distributed in the AMOS package >=2.0.9
+    (http://sourceforge.net/projects/amos/) (or the current development version
+    if this version is not yet released:
+    cvs -z3 -d:pserver:anonymous@amos.cvs.sourceforge.net:/cvsroot/amos co -P AMOS)
+  * Other optional assemblers:
+    - LIGR Assembler (http://sourceforge.net/projects/ligr-assembler/)
+    - TIGR Assembler v2 (ftp://ftp.tigr.org/pub/software/assembler/)
+    - CAP3 (http://seq.cs.iastate.edu/)
+    - 454 De Novo Assembler, a.k.a Newbler (http://www.454.com/products-solutions/analysis-tools/gs-de-novo-assembler.asp)
+
+At this point, you should be able to run the assembly program by typing its name
+(Minimo, LIGR_Assembler, TIGR_Assembler, cap3 and runAssembly respectively) in
+a terminal or command prompt. If this doesn't work the assembler is installed
+improperly or it was not added automatically to your PATH environment variable
+and you should do it manually.
+
+The following Perl modules are dependencies that will be installed automatically
+for you during installation:
+  * Getopt::Declare
+  * Math::Random::MT
+  * Graph
+  * BioPerl-Live >= 1.6.2 (or the current development version if this version is
+    not out yet: http://github.com/bioperl/bioperl-live/tarball/master)
+    - Bio::SeqIO
+    - Bio::Seq::Quality
+    - Bio::PrimarySeq
+    - Bio::Root::Utilities
+    - Bio::DB::Fasta
+    - Bio::DB::Qual
+    - Bio::Assembly::Singlet
+    - Bio::Assembly::Tools::ContigSpectrum
+  * BioPerl-Run >= 1.6.2 (or the current development version if this version is
+    not out yet: http://github.com/bioperl/bioperl-run/tarball/master)
+    - Bio::Tools::Run::TigrAssembler
+    - Bio::Tools::Run::Cap3
+    - Bio::Tools::Run::Minimo
+    - Bio::Tools::Run::Newbler
+
+To install Circonspect, run the following commands in a terminal or command prompt:
+
+  On Linux, Unix, MacOS:
+    $ perl Makefile.PL
+    $ make
+    $ make test
+    As root user:
+    $ make install
+    If you do not have administrator rights and want to install the program
+    locally, read this tutorial:
+      http://sial.org/howto/perl/life-with-cpan/non-root/
+
+  On Windows:
+    $ perl Makefile.PL
+    $ nmake
+    $ nmake test
+    $ nmake install    (as administrator/root)
+   Note that installation will likely require the installation of a compiler,
+   which may not installed on your system. It should be done automatically for
+   you, but if you encounter installation problems on Windows, try to get a
+   compiler from here: http://www.bloodshed.net/dev/devcpp.html
+
+DOCUMENTATION
+
+After installation, you can find the program usage by running the following
+command in a terminal or a command prompt:
+  Circonspect --help
+
+Example 1: Simple contig spectrum with a FASTA input file (all default parameters)
+             perl Circonspect -f 1.fa
+
+Example 2: A contig spectrum based on a FASTA and QUAL file with a sample size
+           of 1000 sequences, a metagenome coverage of 1.0, and a detailed output:
+             perl Circonspect -f 1.fa -q 1.qual -s 1000 -k 1 -e
+
+Example 3: Same thing as previously, but include a second metagenome and
+           produce a cross-contig spectrum. Notice how we a metagenome can be
+           used multiple times:
+             perl Circonspect -f 1.fa 2.fa 1.fa -q 2.qual 1.qual -s 1000 -k 1 -e -x
+
+Example 4: Creating ACE files for the (cross-)contig spectra. ACE files can be
+           large, so perform a single bootstrap that uses as many reads as
+           possible (100% of the reads in the smallest metagenome):
+             perl Circonspect -f 1.fa 2.fa 1.fa -q 2.qual 1.qual -p 100 -r 1 -e -x -a
+
+The 'utils' folder included in the Circonspect package contains a few utilities
+described below:
+
+* reformat_quality_file:
+If you want to use quality files, you have to make sure that the quality scores 
+are on one line. Use the included Perl utility reformat_quality_file if you need
+to convert your quality files.
+
+* batch_cross_contigs.sh:
+If you need to generate cross-contig spectra from many metagenomes, you might
+find the included BASH script batch_cross_contigs.sh useful. Given a list of
+metagenomes, it can calculate the cross-contig spectra between all pairs. The
+computation can be split into several jobs that can be run on a multiple-core
+CPU or on a cluster. Copy this script in the desired location and edit its
+configuration part of this script according to your needs before use.
+
+* average_contig_spectra:
+When requesting a large coverage or many bootstraps, Circonspect calculations
+can be very long. In the event that a Circonspect computation was aborted, all
+hope is not lost. If you requested a detailed output for it, the included Perl
+script average_contig_spectra is capable of reading the fragmentary output and
+produce the output with average contig spectra that you expect from Circonspect,
+albeit using only as many repetitions as were completed before Circonspect was
+interrupted.
+
+
+COPYRIGHT AND LICENCE
+
+Copyright 2010,2011 Florent ANGLY <florent.angly@gmail.com>
+
+Circonspect is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+Circonspect is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with Circonspect.  If not, see <http://www.gnu.org/licenses/>.
+
+
+BUGS
+
+All complex software has bugs lurking in it, and this program is no exception.
+If you find a bug, please report it on the SourceForge Tracker for Grinder:
+https://sourceforge.net/tracker/?group_id=231834&atid=1084346
+
+Bug reports, suggestions and patches are welcome. Circonspect's is developed on
+Sourceforge under Git revision control (https://sourceforge.net/scm/?type=git&group_id=231834).
+To get started with a patch, do:
+
+   git clone git://circonspect.git.sourceforge.net/gitroot/circonspect/circonspect
+

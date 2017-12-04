@@ -1,0 +1,75 @@
+#! /usr/bin/env perl
+
+# Circonspect, copyright 2013 Florent Angly <florent.angly@gmail.com>, under
+# the GNU GPLv3 license. Circonspect generates contig spectra by boostrapping
+# assemblies of random subsets of metagenomes.
+
+# csp2csv is a Perl script to convert contig spectra into comma-separated values
+
+use strict;
+use warnings;
+
+my $usage = "Usage: $0 CSP_FILE (SEPARATOR) (OUTPUT_FILE)\n".
+   "$0 takes a CSP file and convert the contig spectra to a comma-separated format:\n".
+   "   size of contigs, number of contigs of this size\n".
+   "Comma is the default, but you can specify any separator, e.g. tab (in Bash: Ctrl+V, then TAB).\n".
+   "Multiple output contig spectra are separated by a blank line\n";
+
+my $infile    = shift or die $usage;
+my $separator = shift;
+my $outfile   = shift;
+csp2csv($infile, $separator, $outfile);
+exit;
+
+
+sub csp2csv {
+   my ($infile, $separator, $outfile) = @_;
+   if (not defined $separator) {
+      $separator = ",";
+   }
+   # Open input and output
+   open my $in, '<', $infile or die "Error: Could not read file '$infile'\n$!\n";
+   my $out;
+   if (defined $outfile) {
+      open $out, '>', $outfile or die "Error: could not write file $outfile\n$!";
+   } else {
+      $out = \*STDOUT;
+   }
+   my $csp_lineno = 0;
+   while (my $line = <$in>) {
+      if ($line =~ m/^#/) {
+         # Skip comment lines
+         next;
+      }
+      chomp $line;
+      if ($line =~ m/^\s*$/) {
+         # End of current record
+         $csp_lineno = 0;
+         print $out "\n";
+         next;
+      }
+      $csp_lineno++;
+      if ($csp_lineno != 2) {
+         # Skip non-contig spectrum entries of the record
+         next;
+      }
+      
+      print $out convert_csp($line, $separator);
+
+   }
+   close $out;
+   close $in;
+   return 1;
+}
+
+
+sub convert_csp {
+   my ($line, $separator) = @_;
+   my $csv = '';
+   my $size = 0;
+   for my $num (split /\s+/, $line) {
+      $size++;
+      $csv .= $size.$separator.$num."\n";
+   }
+   return $csv;
+}

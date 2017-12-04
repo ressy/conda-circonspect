@@ -1,0 +1,193 @@
+#! /usr/bin/env perl
+
+# Circonspect, copyright 2010 Florent Angly <florent.angly@gmail.com>, under
+# the GNU GPLv3 license. Circonspect generates contig spectra by boostrapping
+# assemblies of random subsets of metagenomes.
+
+# average_contig_spectra is a Perl script to calculate the average contig
+# spectra from an unfinished Circonspect computation
+
+use strict;
+use warnings;
+
+my $usage = "Usage: $0 DETAILS_FILE (OUTPUT_FILE)\n".
+   "$0 takes a *-details file from an unfinished Circonspect run and calculates".
+   " the final average contig spectra. It is displayed on screen if no output ".
+   "file is specified\n";
+my $infile = shift or die $usage;
+my $outfile = shift;
+average_contig_spectra($infile, $outfile);
+
+#==============================================================================#
+
+sub average_contig_spectra {
+  my ($infile, $outfile) = @_;
+  # Read detail file
+  my $details = read_details($infile);
+  # Truncate last repetition (likely incomplete / corrupted)
+  $details = truncate_details($details);
+  # Parse details
+  my ($results, $sample_order) = parse_details($details);
+  # Calculate average
+  my $average = average_results($results);
+  # Show or save average in a file
+  print_average($average, $outfile, $sample_order);
+  return 1;
+}
+
+
+sub read_details {
+  my ($infile) = @_;
+  open my $infh, '<', $infile or die "Error: could not read file $infile\n$!";
+  my @entries = <$infh>;
+  close $infh;
+  return \@entries;
+}
+
+
+sub truncate_details {
+   my ($details) = @_;
+   # Remove lines starting from the last. Stop when encountering a blank line,
+   # separating repetitions
+   my $line;
+   do {
+      $line = pop @$details;
+   } while ($line !~ m/^$/);
+   return $details;
+}
+
+
+sub parse_details {
+   my ($details) = @_;
+   my $results; # holds the intermediary contig spectrum results
+   my ($min_overlap, $rep_num, $name, $csp, $avg_seq_len, $version, $sample_order);
+   for my $line (@$details) {
+      if ($line =~ m/Circonspect (\d+.*)\s*$/) {
+         $version = $1;
+      } elsif ($line =~ m/Minimum sequence overlap: (\d+) bp$/) {
+         $min_overlap = $1;
+      } elsif ($line =~ m/Repetition (\d+)$/) {
+         # Save and clean before starting new contig spectrum
+         $results = store_csp($results, $name, $csp, $avg_seq_len);
+         ($rep_num, $name, $csp, $avg_seq_len) = (undef, undef, undef, undef);
+         # New contig spectrum, 
+         $rep_num = $1;
+      } elsif ($line =~ m/(Sample \S+|Mixed sample|Cross sample|Sum of dissolved samples|Dissolved \S+)$/ && $rep_num > 0) {
+         # Save and clean before starting new contig spectrum
+         $results = store_csp($results, $name, $csp, $avg_seq_len);
+         ($name, $csp, $avg_seq_len) = (undef, undef, undef);
+         # New contig spectrum
+         $name = $1;
+         # Save sample order for 1st repetition
+         if ($rep_num == 1) {
+            push @$sample_order, $name;
+         }
+      } elsif ($line =~ m/Contig spectrum\s+(.+)$/) {
+         $csp = [ split /\s+/, $1 ];
+      } elsif ($line =~ m/Average sequence length\s+(\S+)\s+bp$/) {
+         $avg_seq_len = $1;
+      }
+   }
+   $results = store_csp($results, $name, $csp, $avg_seq_len, $min_overlap, $rep_num, $version);
+   if (not defined $rep_num) {
+      die "Error: Could not find out the number of repetitions. Is the input file a proper Circonspect detailed results file?\n";
+   }
+   return $results, $sample_order;
+}
+
+
+sub average_results {
+   my ($results) = @_;
+   my $average;
+   $average->{'min_overlap'} = $results->{'min_overlap'};
+   $average->{'nof_reps'} = $results->{'nof_reps'};
+   $average->{'version'} = $results->{'version'};
+   for my $name (keys %$results) {      if (ref($results->{$name}) eq '') {
+         next;
+      }
+      if (ref($results->{$name}) eq '') {
+         next;
+      }
+      my $avg_seq_lens = $results->{$name}->{'avg_seq_len'};
+      my $csps = $results->{$name}->{'csp'};
+      $average->{$name}->{'avg_seq_len'} = average( $avg_seq_lens, $average->{'nof_reps'} );
+      for my $q ( keys %$csps ) {
+         $average->{$name}->{'csp'}->{$q} = average( $$csps{$q}, $average->{'nof_reps'} );
+      }
+   }
+   return $average;
+}
+
+
+sub print_average {
+   my ($average, $outfile, $sample_order) = @_;
+   # Open output filehandle
+   my $outfh;
+   if (defined $outfile) {
+      open $outfh, '>', $outfile or die "Error: could not write file $outfile\n$!";
+   } else {
+      $outfh = \*STDOUT;
+   }
+   # Display all contig spectra in order
+   print $outfh "# Circonspect ".$average->{'version'}."\n";
+   for my $name (@$sample_order) {
+      next unless ( ($name =~ m/^Sample/) || ($name =~ m/^Mixed/) || ($name =~ m/^Cross/) );
+      # Contig spectrum textual representation
+      my $clean_name;
+      if ($name =~ m/^Sample\s+(.*)\s*$/) {
+         $clean_name = $1;
+      } elsif ($name =~ m/^Mixed/) {
+         $clean_name = 'mixed';
+      } elsif ($name =~ m/^Cross/) {
+         $clean_name = 'cross';
+      }
+      print $outfh "$clean_name\n";
+      for my $q ( sort {$a <=> $b} (keys %{$average->{$name}->{'csp'}}) ) {
+         print $outfh $average->{$name}->{'csp'}->{$q}." ";
+      }
+      print $outfh "\n";
+      print $outfh $average->{$name}->{'avg_seq_len'}."\n";
+      print $outfh $average->{'min_overlap'}."\n";
+      print $outfh $average->{'nof_reps'}."\n";
+      print $outfh "\n";
+   } 
+   close $outfh;
+   return 1;
+}
+
+
+sub store_csp {
+   my ($results, $name, $csp, $avg_seq_len, $min_overlap, $nof_reps, $version) = @_;
+   # min_overlap, nof_reps and version are optional
+   if (not defined $name && not defined $csp && not defined $avg_seq_len) {
+     return $results;
+   }
+   if (defined $min_overlap) {
+      $results->{'min_overlap'} = $min_overlap;
+   }
+   if (defined $nof_reps) {
+      $results->{'nof_reps'} = $nof_reps;
+   }
+   if (defined $version) {
+      $results->{'version'} = $version;
+   }
+   push @{$results->{$name}->{'avg_seq_len'}}, $avg_seq_len;
+   for my $q (1 .. scalar @$csp) {
+     push @{$results->{$name}->{'csp'}->{$q}}, $$csp[$q-1];
+   }
+   return $results;
+}
+
+
+sub average {
+   my ($arr, $nof_elements) = @_;
+   my $avg = 0;
+   for my $val (@$arr) {
+      $avg += $val;
+   }
+   my $divider = $nof_elements || scalar @$arr;
+   $avg /= $divider;
+   return $avg;
+}
+
+exit;

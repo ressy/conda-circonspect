@@ -1,0 +1,29 @@
+#! /usr/bin/env perl
+
+# Circonspect, copyright 2010 Florent Angly <florent.angly@gmail.com>, under
+# the GNU GPLv3 license. Circonspect generates contig spectra by boostrapping
+# assemblies of random subsets of metagenomes.
+
+# reformat_quality_file is a Perl script to transform a quality file with multi-
+# line quality scores on a single line, for input to Circonspect
+
+use strict;
+use warnings;
+use Bio::SeqIO;
+
+my $usage = "Usage: $0 INPUT_QUAL OUTPUT_QUAL\n$0 puts your quality scores on a single line\n";
+my $infile = shift or die $usage;
+my $outfile = shift or die $usage;
+
+# create one SeqIO object to read in, and another to write out
+my $qual_in = Bio::SeqIO->new( -file   => "<$infile",
+                               -format => 'qual'      );
+my $qual_out = Bio::SeqIO->new( -file   => ">$outfile",
+                                -format => 'qual'       );
+
+# write each entry in the input file to the output file
+while (my $inqual = $qual_in->next_seq) {
+   $qual_out->write_seq(-source => $inqual, -oneline => 1);
+}
+
+exit;

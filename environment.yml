@@ -1,0 +1,8 @@
+name: circonspect
+channels:
+  - bioconda
+dependencies:
+  - amos
+  - libdb
+  - perl-db-file
+  - perl-bioperl

@@ -1,0 +1,199 @@
+#! /usr/bin/env perl
+
+# Copyright Florent Angly <florent.angly@gmail.com> 2010 under the GPLv3 license
+
+# Circonspect is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# Circonspect is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with Circonspect.  If not, see <http://www.gnu.org/licenses/>.
+
+# Circonspect (Control In Research on CONtig SPECTra) was designed to create
+# contig spectra based on the assembly of random subsets of metagenomes. The
+# contig spectra can then be modeled downstream to get diversity estimates (for
+# example with PHACCS (http://sourceforge.net/projects/phaccs). Different kind of
+# contig spectra can be created: the standard contig spectrum for alpha-diversity,
+# the mixed contig spectrum, for gamma-diversity, and the cross-contig spectrum,
+# for beta diversity. Building a cross-contig spectrum requires building a mixed
+# contig spectrum, which requires building normal contig spectra based on several
+# selected metagenomes (FASTA files). Circonspect uses a indexed sequence
+# database to store temporary data. Any assembly program that support a minimum
+# overlap length and similarity is appropriate; Minimo is recommended but you
+# can use LIGR Assembler, CAP3, TIGR Assembler and Newbler too. When multiple
+# repetitions are done (bootstrapping), the average contig spectrum is
+# calculated. The user can control the size of the sequences by trimming them to
+# a given length and removing sequences smaller than a threshold.
+
+# Example 1: building a contig spectrum based on a FASTA and QUAL file with
+# sample size 1000 sequences such that the metagenome coverage is 1, and
+# producing a detailed output:
+#    perl Circonspect.pl -f 1.fa -q 1.qual -s 1000 -k 1 -e
+# Example 2: same thing as previously, but we include a second metagenome and
+# produce a cross-contig spectrum (notice how we metagenome 1 is used twice):
+#    perl Circonspect.pl -f 1.fa 2.fa 1.fa -q 2.qual 1.qual -s 1000 -k 1 -e -x
+
+use strict;
+use warnings;
+use Getopt::Declare;
+use FindBin qw($Bin);
+use lib "$Bin";
+use Circonspect;
+#use Parallel::MPI qw(:all);
+
+$::VERSION = $Circonspect::VERSION;
+
+###############
+#use Data::Dumper; print Dumper(\@ARGV);
+#MPI_Init();
+#print Dumper(\@ARGV);
+###############
+
+my $args = argument_parse();
+Circonspect::Circonspect(
+    ${$args}{'-f'}, ${$args}{'-q'} , ${$args}{'-u'} , ${$args}{'-v'},
+    ${$args}{'-d'}, ${$args}{'-b'} , ${$args}{'-o'} , ${$args}{'-e'},
+    ${$args}{'-t'}, ${$args}{'-a'} , ${$args}{'-s'} , ${$args}{'-p'},
+    ${$args}{'-c'}, ${$args}{'-r'} , ${$args}{'-k'} , ${$args}{'-z'},
+    ${$args}{'-y'}, ${$args}{'-i'} , ${$args}{'-l'} , ${$args}{'-g'},
+    ${$args}{'-x'}, ${$args}{'-ht'}, ${$args}{'-hw'}
+);
+
+#########
+#MPI_Finalize();
+#########
+
+exit;
+
+sub argument_parse {
+
+    # Usage
+    my %def;    # defaults
+    $def{'-u'}  = 100;
+    $def{'-v'}  = 100;
+    $def{'-ht'} = 0;
+    $def{'-hw'} = 0;
+    $def{'-k'}  = 1;
+    $def{'-s'}  = 10000;
+    $def{'-y'}  = 'Minimo';
+    $def{'-i'}  = 98;
+    $def{'-l'}  = 35;
+    $def{'-d'}  = q{.};
+    $def{'-b'}  = 'circonspect';
+    ## no critic (ProhibitHardTabs, ProhibitImplicitNewlines)
+    my $argspecs =
+      "[strict] [pvtype: asm /Minimo|LigrAssembler|TigrAssembler|Cap3|Newbler/]
+ Input options:
+  Input files can be compressed in the .gz, .Z, .bz2 or .zip format
+  -f <fastafiles:s>...		List of metagenome FASTA files. Avoid '.' in files name unless
+                                it is to specify an extension, e.g. .fasta or .fna.gz. In the
+                                file, avoid ':' in sequence names and blank lines.
+     [required]
+  -q <qualfiles:s>...		List of metagenome QUAL files. Not all metagenomes need have 
+                                 quality scores and order is irrelevant, but make sure the QUAL
+                                 file has the same basename as the corresponding FASTA file.
+                                 Also, quality scores for each sequence have to be on one line!
+
+ Sequence processing options:
+  -u <discardsize:+i>		Discard sequences smaller than specified size. Note that the
+                                 assembler may alter your sequences, such that the final
+                                 sequence length can be slightly less than the expected
+                                 value (default: $def{'-u'} bp)
+  -v <trimsize:+i>		Trim sequences to specified size (starting at a random position)
+                                 (default: $def{'-u'} bp)
+  -ht <cplxthres:0+n>		Filter out low complexity sequences by specifying a minimum
+                                 dinucleotide entropy (Shannon-Wiener index H) (default: $def{'-ht'} nats)
+                                 (0: off)
+  -hw <cplxwindow:0+i>		For a value different from 0, remove regions of low complexity
+                                 instead of complete sequences when filtering low complexity.
+                                 The sequences will be cut at low complexity regions using the
+                                 specified sliding window length (default: $def{'-hw'} bp). For
+                                 example, try -ht 2.0 with -hw 21.
+     [requires: -ht]
+
+ Sampling options:
+  -k <mincoverage:+n>		Minimum metagenome coverage. For a given metagenome:
+                                 coverage = r * s * avg sequence length / metagenome size (bp)
+                                 (default: $def{'-k'} x)
+     [excludes: -r]
+  -r <repnumber:+i>		Number of repetitions of the sampling
+     [excludes: -k]
+  -s <samplesize:+i>		Sample size (number of random sequences per contig spectrum)
+                                 (default: $def{'-s'} sequences)
+     [excludes: -p]
+  -p <metapercent:+n>		Sample size equal to at most metapercent of the metagenomes
+     {reject \$metapercent > 100}
+     [excludes: -s]
+  -z <seed:+n>			Seed number to use for the random number generator 
+
+ Assembly options:
+  -y <asmprog:asm>		Assembly program to use: Minimo, LigrAssembler, TigrAssembler,
+                                 Cap3 or Newbler (default: $def{'-y'})
+  -i <minidentity:+n>		Minimum sequence identity (default: $def{'-i'} %)
+     {reject \$minidentity > 100}
+  -l <minoverlap:+i>		Minimum sequence overlap (default: $def{'-l'} bp)
+
+ Contig spectrum type options:
+  -g				Generate mixed contig spectrum
+     {my \$mixed = 1}
+  -x				Generate cross-contig spectrum (implies -g)
+     {my \$cross = 1}
+  -c <samplecompo:+n>...	Composition of the mixed/crossed sample (list of percent of
+                                 sequences from each metagenome)
+     [requires: (-g || -x)]
+
+ Output options:
+  -d <outdir:of>		Output directory (default: $def{'-d'})
+  -b <outprefix:of>		File prefix (default: $def{'-b'})
+  -o				Flag to output the basic results in a file instead of on screen
+  -e				Flag for detailed output file including intermediary contig
+                                 spectra, ...
+     {my \$outdetails = 0}
+  -t				Flag to calculate the effective assembly parameters in the
+                                 detailed output file (may be slower)
+     {my \$outstats = 0}
+  -a				Flag to ouput the produced assemblies in ACE format (including)
+                                 intermediary assemblies if -e was specified) for downstream
+                                 analysis or visualization (e.g. with Hawkeye). 
+     {my \$outace = 0}
+
+ Results format:
+  Results are written on the standard output. For each metagenome, the
+   following is reported (on separate lines):
+    * the contig spectrum name
+    * the contig spectrum (number of singlets, 2-contigs, 3-contigs, ...)
+    * the effective average sequence length
+    * the specified contig overlap length
+    * the number of bootstraps (repetitions)
+  The results for different metagenomes are separated by a blank line.";
+    ## use critic
+    # Parse command-line arguments
+    my $args = Getopt::Declare->new($argspecs);
+    if ( not $args ) { die "Error: could not parse command line arguments.\n" }
+
+    # Apply defaults where needed
+    for my $param ( keys %def ) {
+        if ( not defined ${$args}{$param} ) {
+            ${$args}{$param} = $def{$param};
+        }
+    }
+    
+    # Exceptions: default params that conflict with user-specified params
+    # Default coverage
+    if ( defined ${$args}{'-k'} && ${$args}{'-k'} == $def{'-k'}) {
+        # Coverage has default value
+        # Number of repetitions was manually specified
+        # Ignore default value for coverage
+        delete ${$args}{'-k'} if defined ${$args}{'-r'};
+    }
+    # Default sample size
+    if ( defined ${$args}{'-s'} && ${$args}{'-s'} == $def{'-s'}) {
+        delete ${$args}{'-s'} if defined ${$args}{'-p'};
+    }
+ 
+    return $args;
+}
